@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cobble &amp; Vein admin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: specimen-tag cards under a compact masthead with Shop / Manage tabs; category tiles double as filters; Manage is password-gated. */
+:root {
+  --bg: #edf0ee;
+  --surface: #fafbfa;
+  --ink: #18211d;
+  --mute: #55635c;
+  --line: #c9d1cc;
+  --accent: #1d6b53;
+  --accent-ink: #ffffff;
+  --warn: #8a5a12;
+  --warn-bg: #f3e6cc;
+  --bad: #a3321f;
+  --scrim: rgba(10, 16, 13, 0.55);
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color-scheme: light;
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+  --font-body: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121816;
+    --surface: #1a2220;
+    --ink: #e8eeea;
+    --mute: #9aa8a1;
+    --line: #2c3733;
+    --accent: #5cc29b;
+    --accent-ink: #0b1a14;
+    --warn: #e3b964;
+    --warn-bg: #3a2f18;
+    --bad: #ff8f7a;
+    --scrim: rgba(0, 0, 0, 0.65);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121816;
+  --surface: #1a2220;
+  --ink: #e8eeea;
+  --mute: #9aa8a1;
+  --line: #2c3733;
+  --accent: #5cc29b;
+  --accent-ink: #0b1a14;
+  --warn: #e3b964;
+  --warn-bg: #3a2f18;
+  --bad: #ff8f7a;
+  --scrim: rgba(0, 0, 0, 0.65);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 0 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.notice {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 13px;
+  border-radius: 4px;
+}
+
+.masthead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-block: 24px 0;
+  flex-wrap: wrap;
+}
+.brand { font-family: var(--font-display); font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
+.brand small {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav a {
+  color: var(--mute);
+  font-weight: 500;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+}
+.nav a:hover { color: var(--ink); }
+.nav a[aria-current="page"] { color: var(--ink); border-color: var(--line); background: var(--surface); }
+
+.hero { padding-block: 32px 24px; max-width: 640px; }
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(30px, 6vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  margin: 0 0 12px;
+  text-wrap: balance;
+}
+.hero p { margin: 0; color: var(--mute); max-width: 52ch; }
+.stock {
+  margin-top: 14px !important;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h2.section { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.01em; margin: 0 0 12px; }
+
+/* category tiles */
+.cats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-width: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.tile:hover { border-color: var(--accent); }
+.tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tile .swatch { aspect-ratio: 16 / 9; }
+.tile .body { gap: 4px; }
+.tile .name { font-size: 17px; }
+.tile .blurb { font-size: 13px; color: var(--mute); overflow-wrap: anywhere; }
+.tile .n { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); margin-top: auto; padding-top: 4px; }
+
+.controls { display: grid; gap: 12px; padding-top: 20px; padding-bottom: 20px; border-top: 1px solid var(--line); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.search { flex: 1 1 240px; min-width: 0; }
+.field {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+.field::placeholder { color: var(--mute); }
+.sortwrap { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--mute); }
+.sortwrap select { width: auto; }
+.countrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.count { font-size: 13px; color: var(--mute); margin: 0; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: underline; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  gap: 16px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-width: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.swatch { position: relative; display: block; aspect-ratio: 4 / 3; max-width: 100%; background: var(--sw); overflow: hidden; }
+.swatch::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, transparent 40%, rgba(0, 0, 0, 0.3));
+}
+.swatch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--noise);
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+}
+.swatch.photo::before, .swatch.photo::after { display: none; }
+.is-sold .swatch { filter: grayscale(0.75); opacity: 0.6; }
+.body { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px 14px; flex: 1; min-width: 0; }
+.tagline { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lot {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.sold {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--warn-bg);
+  color: var(--warn);
+  padding: 1px 8px;
+  border-radius: 3px;
+}
+.name { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.15; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.origin { font-size: 13px; color: var(--mute); }
+.specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+}
+.price {
+  margin-top: auto;
+  padding-top: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.empty { grid-column: 1 / -1; padding: 32px 0; color: var(--mute); }
+
+.contact { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); display: grid; gap: 12px; max-width: 560px; }
+.contact h2 { font-family: var(--font-display); font-size: 24px; letter-spacing: -0.02em; margin: 0; }
+.contact p { margin: 0; color: var(--mute); }
+.email { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.email code { font-family: var(--font-mono); font-size: 14px; background: var(--surface); border: 1px solid var(--line); padding: 6px 10px; border-radius: 4px; user-select: all; }
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.foot { margin-top: 32px; font-size: 12px; color: var(--mute); }
+
+/* manage tab */
+.manage { padding-block: 32px 0; display: grid; gap: 24px; }
+.manage h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(26px, 5vw, 38px); line-height: 1.05; letter-spacing: -0.03em; margin: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 20px; display: grid; gap: 12px; max-width: 460px; }
+.panel h2 { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.01em; margin: 0; }
+.panel p { margin: 0; color: var(--mute); }
+.panel label, .editor label { font-size: 13px; color: var(--mute); display: grid; gap: 4px; }
+.msg { min-height: 1.4em; font-size: 13px; color: var(--mute); margin: 0; }
+.msg.bad { color: var(--bad); }
+.msg.ok { color: var(--accent); }
+.admin { display: grid; gap: 24px; }
+.adminbar { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.editors { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.editor { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.editor .swatch { aspect-ratio: 16 / 9; border-radius: 4px; }
+.editor textarea { min-height: 84px; resize: vertical; }
+.editor .key { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* spec sheet dialog */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.sheet {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 100%;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.sheet .swatch { aspect-ratio: auto; min-height: 280px; height: 100%; }
+.detail { padding: 24px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.detail h2 { font-family: var(--font-display); font-weight: 800; font-size: 28px; line-height: 1.05; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.detail p { margin: 0; }
+.detail .desc { color: var(--mute); }
+.price-lg { font-family: var(--font-display); font-weight: 700; font-size: 26px; font-variant-numeric: tabular-nums; }
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; padding: 12px 0; border-block: 1px solid var(--line); font-size: 14px; }
+dl.facts dt { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); padding-top: 3px; }
+dl.facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.ask { display: grid; gap: 8px; }
+.ask label { font-size: 13px; color: var(--mute); }
+.ask textarea { resize: vertical; min-height: 84px; width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font-size: 13px; }
+.close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.close:hover { border-color: var(--accent); }
+
+@media (max-width: 680px) {
+  .sheet { grid-template-columns: minmax(0, 1fr); }
+  .sheet .swatch { min-height: 0; aspect-ratio: 16 / 10; height: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">Cobble &amp; Vein<small>Rocks, crystals &amp; slabs</small></div>
+    <nav class="nav" aria-label="Pages">
+      <a href="index.html">&larr; Back to shop</a>
+    </nav>
+  </header>
+
+  <div id="viewShop">
+    <section class="hero">
+      <h1>Every rock weighed, measured and labeled.</h1>
+      <p>Hand-picked specimens from quarries, riverbeds and mines around the world. Browse what is in stock, then message us the lot number of the one you want.</p>
+      <p class="stock" id="stock"></p>
+    </section>
+
+    <h2 class="section">Shop by category</h2>
+    <section class="cats" id="cats" aria-label="Categories"></section>
+
+    <section class="controls" aria-label="Find a rock">
+      <div class="row">
+        <div class="search"><input id="q" class="field" type="search" placeholder="Search by name, origin or lot number" aria-label="Search rocks"></div>
+        <label class="sortwrap" for="sort">Sort
+          <select id="sort" class="field">
+            <option value="featured">Featured</option>
+            <option value="price-asc">Price, low to high</option>
+            <option value="price-desc">Price, high to low</option>
+            <option value="weight-desc">Heaviest first</option>
+          </select>
+        </label>
+      </div>
+      <div class="countrow">
+        <p class="count" id="count" aria-live="polite"></p>
+        <button class="linkbtn" id="clearCat" type="button" hidden>Show all categories</button>
+      </div>
+    </section>
+
+    <main class="grid" id="grid"></main>
+
+    <section class="contact" id="contact">
+      <h2>How to order</h2>
+      <p>Find the lot number on the rock you like, then send it to us with your ZIP code and we will reply with the total including shipping. Weights are in grams, sizes in centimeters.</p>
+      <div class="email">
+        <code id="email">hello@yourshop.com</code>
+        <button class="btn" id="copyEmail" type="button">Copy email</button>
+      </div>
+    </section>
+
+    <p class="foot">Pictures on this page are color illustrations, not photos of the actual rocks. Every real listing is photographed before it goes up.</p>
+  </div>
+
+  <div id="viewManage" class="manage" hidden>
+    <h1>Manage categories</h1>
+    <div id="lock" class="panel"></div>
+    <div id="admin" class="admin" hidden></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <button class="close" id="close" type="button" aria-label="Close">&times;</button>
+    <div class="swatch" id="sheetSwatch"></div>
+    <div class="detail" id="detail"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var EMAIL = "hello@yourshop.com";
+  var SW = {
+    amethyst: "conic-gradient(from 200deg at 50% 105%, rgba(255,255,255,.3), transparent 9%, rgba(255,255,255,.15) 17%, transparent 28%, rgba(255,255,255,.22) 40%, transparent 52%, rgba(255,255,255,.12) 66%, transparent 80%), radial-gradient(ellipse at 50% 110%, #e9d5ff 0%, #a56be0 28%, #5b2a9b 60%, #2a1250 100%)",
+    pyrite: "repeating-linear-gradient(45deg, rgba(40,30,5,.35) 0 2px, transparent 2px 22px), repeating-linear-gradient(-45deg, rgba(40,30,5,.3) 0 2px, transparent 2px 22px), linear-gradient(135deg, #6b5a1a, #d8bd4a 30%, #f3e28a 45%, #9a8226 62%, #d3b840)",
+    fluorite: "repeating-linear-gradient(115deg, rgba(255,255,255,.12) 0 3px, transparent 3px 26px), linear-gradient(120deg, #4b2d7f 0%, #2b8f8a 38%, #7ed6b0 54%, #3a6fa8 72%, #5b3a97 100%)",
+    rose: "radial-gradient(circle at 36% 32%, #fff0f3 0, #f7c6d3 22%, #e39ab0 55%, #b76a85 100%)",
+    tiger: "repeating-linear-gradient(100deg, #3a2210 0 10px, #b9772a 10px 18px, #e8b04a 18px 24px, #6a3d14 24px 34px)",
+    labradorite: "linear-gradient(115deg, transparent 38%, rgba(70,190,210,.75) 48%, rgba(230,190,80,.6) 56%, transparent 66%), linear-gradient(135deg, #1b252d, #2c4656 45%, #22313a)",
+    malachite: "repeating-radial-gradient(circle at 40% 55%, #0c3b24 0 6px, #1e8a55 6px 11px, #0f4f31 11px 15px, #5fc98d 15px 17px)",
+    obsidian: "radial-gradient(circle at 28% 22%, rgba(255,255,255,.35) 0, transparent 14%), radial-gradient(circle at 30% 25%, #4a5560 0, #12161a 28%, #05070a 75%)",
+    tourmaline: "repeating-linear-gradient(90deg, #0a0a0c 0 7px, #2c2c33 7px 9px, #111115 9px 17px, #1d1d22 17px 19px)",
+    wood: "repeating-radial-gradient(circle at 60% 50%, #5a3a24 0 5px, #a8754a 5px 9px, #d9b48a 9px 12px, #7a4a2c 12px 17px)",
+    agate: "repeating-radial-gradient(circle at 50% 50%, #3d5a80 0 5px, #98c1d9 5px 9px, #ee6c4d 9px 12px, #e0fbfc 12px 14px, #293241 14px 19px)",
+    jasper: "radial-gradient(circle at 25% 30%, #c4472a 0 20%, transparent 21%), radial-gradient(circle at 72% 58%, #8f2d1a 0 24%, transparent 25%), radial-gradient(circle at 42% 82%, #e0a040 0 16%, transparent 17%), radial-gradient(circle at 80% 18%, #d9714a 0 12%, transparent 13%), linear-gradient(#a33a22, #6b2314)"
+  };
+
+  /* Categories. Keys stay fixed; name, description and picture can be changed in the Manage tab. */
+  var CAT_KEYS = ["crystals", "polished", "raw", "slices"];
+  var CAT_DEFAULTS = {
+    crystals: { name: "Crystals", desc: "Natural points, clusters and cubes, left as they grew.", sw: "amethyst" },
+    polished: { name: "Polished", desc: "Spheres, palm stones and slabs, hand-finished smooth.", sw: "rose" },
+    raw: { name: "Raw", desc: "Unpolished chunks and rods straight from the ground.", sw: "malachite" },
+    slices: { name: "Slices", desc: "Cut and polished faces that show the banding inside.", sw: "agate" }
+  };
+  var overrides = {}; /* key -> {name, desc, img} from the shared database */
+
+  /* Sample listings. Replace these with real rocks. */
+  var ROCKS = [
+    { lot: "L-001", name: "Amethyst cluster", cat: "crystals", origin: "Artigas, Uruguay", g: 412, size: "11 × 8 × 7 cm", mohs: "7", price: 48, sw: "amethyst", sold: false,
+      desc: "Deep violet points on a basalt base. Natural and unpolished, with one small chip on the back edge." },
+    { lot: "L-002", name: "Pyrite cube cluster", cat: "crystals", origin: "Navajún, Spain", g: 286, size: "7 × 6 × 5 cm", mohs: "6–6.5", price: 36, sw: "pyrite", sold: false,
+      desc: "Sharp, interlocking cubes with fine striations on every face." },
+    { lot: "L-003", name: "Fluorite octahedron", cat: "crystals", origin: "Hunan, China", g: 94, size: "5 × 4 × 4 cm", mohs: "4", price: 22, sw: "fluorite", sold: true,
+      desc: "Green and violet zoning with stepped octahedral faces. Handle gently, fluorite scratches easily." },
+    { lot: "L-004", name: "Rose quartz sphere", cat: "polished", origin: "Minas Gerais, Brazil", g: 476, size: "7 cm diameter", mohs: "7", price: 42, sw: "rose", sold: false,
+      desc: "Hand-polished to a soft pink with a faint internal haze." },
+    { lot: "L-005", name: "Tiger's eye palm stone", cat: "polished", origin: "Northern Cape, South Africa", g: 68, size: "5.5 × 4 × 1.8 cm", mohs: "7", price: 14, sw: "tiger", sold: false,
+      desc: "Gold and brown bands that shift as you turn it. Fits the palm of a hand." },
+    { lot: "L-006", name: "Labradorite slab", cat: "polished", origin: "Toliara, Madagascar", g: 210, size: "12 × 7 × 1.5 cm", mohs: "6–6.5", price: 39, sw: "labradorite", sold: false,
+      desc: "Strong blue and gold flash when tilted toward the light." },
+    { lot: "L-007", name: "Malachite specimen", cat: "raw", origin: "Katanga, DR Congo", g: 158, size: "6 × 5 × 4 cm", mohs: "3.5–4", price: 29, sw: "malachite", sold: false,
+      desc: "Banded green with a rounded, botryoidal surface. Keep it dry and away from acids." },
+    { lot: "L-008", name: "Obsidian chunk", cat: "raw", origin: "Glass Buttes, Oregon, USA", g: 330, size: "10 × 7 × 5 cm", mohs: "5–5.5", price: 18, sw: "obsidian", sold: false,
+      desc: "Raw volcanic glass with sharp conchoidal edges. Handle with care." },
+    { lot: "L-009", name: "Black tourmaline rod", cat: "raw", origin: "Minas Gerais, Brazil", g: 120, size: "9 × 3 × 2.5 cm", mohs: "7–7.5", price: 16, sw: "tourmaline", sold: false,
+      desc: "Deeply striated, raw rod with a natural terminated end." },
+    { lot: "L-010", name: "Petrified wood slice", cat: "slices", origin: "Arizona, USA", g: 380, size: "14 × 11 × 1.6 cm", mohs: "7", price: 44, sw: "wood", sold: false,
+      desc: "The polished face shows growth rings in red, tan and cream. The back is left rough." },
+    { lot: "L-011", name: "Banded agate slice", cat: "slices", origin: "Rio Grande do Sul, Brazil", g: 245, size: "12 × 10 × 1 cm", mohs: "6.5–7", price: 34, sw: "agate", sold: false,
+      desc: "Concentric banding in blue and rust, with a small druzy pocket at the center." },
+    { lot: "L-012", name: "Red jasper slab", cat: "slices", origin: "Madagascar", g: 190, size: "10 × 8 × 1 cm", mohs: "6.5–7", price: 21, sw: "jasper", sold: false,
+      desc: "Patchwork of brick red, orange and ochre, polished on both sides." }
+  ];
+
+  var state = { q: "", cat: "all", sort: "featured" };
+  var $ = function (id) { return document.getElementById(id); };
+  var lastOpener = null;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function validImg(s) { return typeof s === "string" && (/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+$/.test(s) || /^[\w\-.\/]+\.(jpe?g|png|webp|gif)$/i.test(s)); }
+
+  /* the category as visitors see it: defaults overlaid with saved edits */
+  function cat(key) {
+    var d = CAT_DEFAULTS[key], o = overrides[key] || {};
+    return {
+      key: key,
+      name: (typeof o.name === "string" && o.name.trim()) || d.name,
+      desc: typeof o.desc === "string" ? o.desc : d.desc,
+      img: validImg(o.img) ? o.img : "",
+      sw: d.sw
+    };
+  }
+  function picVar(c) { return c.img ? "url('" + c.img + "') center / cover no-repeat" : SW[c.sw]; }
+
+  /* ---------- shop ---------- */
+  function renderCats() {
+    $("cats").innerHTML = CAT_KEYS.map(function (k) {
+      var c = cat(k);
+      var n = ROCKS.filter(function (r) { return r.cat === k; }).length;
+      return '<button type="button" class="tile" data-cat="' + k + '" aria-pressed="' + (state.cat === k) + '">' +
+        '<span class="swatch' + (c.img ? " photo" : "") + '" style="--sw:' + picVar(c) + '"></span>' +
+        '<span class="body">' +
+          '<span class="name">' + esc(c.name) + "</span>" +
+          (c.desc ? '<span class="blurb">' + esc(c.desc) + "</span>" : "") +
+          '<span class="n">' + n + (n === 1 ? " rock" : " rocks") + "</span>" +
+        "</span></button>";
+    }).join("");
+  }
+
+  function visible() {
+    var q = state.q.trim().toLowerCase();
+    var list = ROCKS.filter(function (r) {
+      if (state.cat !== "all" && r.cat !== state.cat) return false;
+      if (!q) return true;
+      return (r.name + " " + r.origin + " " + r.lot + " " + cat(r.cat).name).toLowerCase().indexOf(q) !== -1;
+    });
+    if (state.sort === "price-asc") list.sort(function (a, b) { return a.price - b.price; });
+    if (state.sort === "price-desc") list.sort(function (a, b) { return b.price - a.price; });
+    if (state.sort === "weight-desc") list.sort(function (a, b) { return b.g - a.g; });
+    return list;
+  }
+
+  function renderGrid() {
+    var list = visible();
+    $("count").textContent = "Showing " + list.length + " of " + ROCKS.length + " rocks" + (state.cat !== "all" ? " in " + cat(state.cat).name : "");
+    $("clearCat").hidden = state.cat === "all";
+    if (!list.length) {
+      $("grid").innerHTML = '<p class="empty">No rocks match that search. Try a different word or show all categories.</p>';
+      return;
+    }
+    $("grid").innerHTML = list.map(function (r) {
+      return '<button type="button" class="card' + (r.sold ? " is-sold" : "") + '" data-lot="' + r.lot + '">' +
+        '<span class="swatch" style="--sw:' + SW[r.sw] + '"></span>' +
+        '<span class="body">' +
+          '<span class="tagline"><span class="lot">' + r.lot + '</span>' + (r.sold ? '<span class="sold">Sold</span>' : "") + "</span>" +
+          '<span class="name">' + r.name + "</span>" +
+          '<span class="origin">' + r.origin + "</span>" +
+          '<span class="specs"><span>' + r.g + " g</span><span>" + r.size + "</span><span>Mohs " + r.mohs + "</span></span>" +
+          '<span class="price">$' + r.price + "</span>" +
+        "</span></button>";
+    }).join("");
+  }
+
+  function renderShop() { renderCats(); renderGrid(); }
+
+  function copy(text, btn, field) {
+    var label = btn.getAttribute("data-label") || btn.textContent;
+    btn.setAttribute("data-label", label);
+    function done(msg) {
+      btn.textContent = msg;
+      setTimeout(function () { btn.textContent = label; }, 1600);
+    }
+    function fallback() {
+      if (field && field.select) { field.focus(); field.select(); }
+      done("Selected, press copy");
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done("Copied"); }, fallback);
+    } catch (e) { fallback(); }
+  }
+
+  function openRock(lot, opener) {
+    var r = ROCKS.filter(function (x) { return x.lot === lot; })[0];
+    if (!r) return;
+    lastOpener = opener || null;
+    var msg = r.sold
+      ? "Hi! I saw " + r.lot + " (" + r.name + ") is sold. Do you have anything similar coming in?"
+      : "Hi! I'm interested in " + r.lot + " (" + r.name + "). Is it still available, and what would shipping to ZIP ____ cost?";
+    $("sheetSwatch").style.setProperty("--sw", SW[r.sw]);
+    $("detail").innerHTML =
+      '<div><span class="lot">' + r.lot + " · " + esc(cat(r.cat).name) + "</span></div>" +
+      '<h2 id="sheetTitle">' + r.name + "</h2>" +
+      '<p class="price-lg">$' + r.price + (r.sold ? ' <span class="sold">Sold</span>' : "") + "</p>" +
+      '<p class="desc">' + r.desc + "</p>" +
+      '<dl class="facts">' +
+        "<dt>Weight</dt><dd>" + r.g + " g</dd>" +
+        "<dt>Size</dt><dd>" + r.size + "</dd>" +
+        "<dt>Origin</dt><dd>" + r.origin + "</dd>" +
+        "<dt>Hardness</dt><dd>Mohs " + r.mohs + "</dd>" +
+      "</dl>" +
+      '<div class="ask">' +
+        '<label for="msg">' + (r.sold ? "Ask about similar pieces" : "Message to send") + "</label>" +
+        '<textarea id="msg" readonly>' + msg + "</textarea>" +
+        '<div class="actions">' +
+          '<button class="btn primary" id="copyMsg" type="button">Copy message</button>' +
+          '<span class="email"><code>' + EMAIL + "</code></span>" +
+        "</div>" +
+      "</div>";
+    $("copyMsg").addEventListener("click", function () { copy($("msg").value, $("copyMsg"), $("msg")); });
+    $("overlay").hidden = false;
+    document.body.style.overflow = "hidden";
+    $("close").focus();
+  }
+
+  function closeSheet() {
+    $("overlay").hidden = true;
+    document.body.style.overflow = "";
+    if (lastOpener && lastOpener.focus) lastOpener.focus();
+  }
+
+  /* ---------- saved edits ---------- */
+/* categories.json (next to this file) holds the published edits. This browser's own edits sit in localStorage until they are downloaded and committed. */
+var LS_KEY = "cobble-vein-v1";
+var published = { categories: {}, password: null };
+var local = { categories: {}, password: null };
+try {
+  var raw = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+  if (raw && typeof raw === "object") local = { categories: raw.categories || {}, password: raw.password || null };
+} catch (e) {}
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(local)); } catch (e) {} }
+function mergeCats() {
+  var o = {};
+  CAT_KEYS.forEach(function (k) {
+    var p = published.categories[k], l = local.categories[k];
+    if (p || l) o[k] = Object.assign({}, p || {}, l || {});
+  });
+  overrides = o;
+}
+function currentPw() { return local.password || published.password; }
+var deps = fetch("categories.json", { cache: "no-cache" })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .catch(function () { return null; })
+  .then(function (j) {
+    if (j && typeof j === "object") published = { categories: j.categories || {}, password: j.password || null };
+    mergeCats();
+    renderShop();
+  });
+function download() {
+  var data = { categories: {}, password: currentPw() };
+  CAT_KEYS.forEach(function (k) { var c = cat(k); data.categories[k] = { name: c.name, desc: c.desc, img: c.img }; });
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "categories.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* ---------- password ---------- */
+  var ITER = 150000;
+  function b64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+  function unb64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+  function derive(pw, salt, iter) {
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]).then(function (k) {
+      return crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: salt, iterations: iter }, k, 256);
+    }).then(b64);
+  }
+  function savePassword(pw) {
+    var salt = crypto.getRandomValues(new Uint8Array(16));
+    return derive(pw, salt, ITER).then(function (hash) {
+      local.password = { salt: b64(salt), hash: hash, iter: ITER };
+      persist();
+    });
+  }
+  function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function setMsg(el, text, kind) { el.textContent = text; el.className = "msg" + (kind ? " " + kind : ""); }
+
+  /* ---------- manage tab ---------- */
+  var unlocked = false;
+  var drafts = {}; /* key -> {img} picture chosen but not yet saved */
+  var pwData = null;
+
+  function lockPanel(html) { $("lock").innerHTML = html; $("lock").hidden = false; $("admin").hidden = true; }
+
+  function renderManage() {
+    if (unlocked) { renderAdmin(); return; }
+    lockPanel("<p>Checking…</p>");
+    deps.then(function () {
+      pwData = currentPw();
+      if (pwData) {
+        lockPanel(
+          "<h2>Enter password</h2>" +
+          '<form id="unlockForm" class="panel" style="border:0;padding:0;max-width:none">' +
+            '<label for="pw">Password<input id="pw" class="field" type="password" autocomplete="current-password" required></label>' +
+            '<div class="actions"><button class="btn primary" type="submit">Unlock</button></div>' +
+            '<p class="msg" id="lockMsg" aria-live="polite"></p>' +
+          "</form>");
+        $("pw").focus();
+      } else {
+        lockPanel(
+          "<h2>Choose a password</h2><p>This keeps casual visitors out of the editor. It is not strong security, because this is a static page and anyone can read its source.</p>" +
+          '<form id="setupForm" class="panel" style="border:0;padding:0;max-width:none">' +
+            '<label for="pw1">New password<input id="pw1" class="field" type="password" autocomplete="new-password" minlength="6" required></label>' +
+            '<label for="pw2">Type it again<input id="pw2" class="field" type="password" autocomplete="new-password" minlength="6" required></label>' +
+            '<div class="actions"><button class="btn primary" type="submit">Set password</button></div>' +
+            '<p class="msg" id="lockMsg" aria-live="polite"></p>' +
+          "</form>");
+        $("pw1").focus();
+      }
+    });
+  }
+
+  function renderAdmin() {
+    $("lock").hidden = true;
+    var box = $("admin");
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="adminbar"><p class="msg" style="margin:0">Save keeps edits in this browser. To publish them, download categories.json and commit it next to index.html.</p>' +
+      '<span class="actions"><button class="btn primary" id="dlBtn" type="button">Download categories.json</button><button class="btn" id="lockBtn" type="button">Lock</button></span></div>' +
+      '<div class="editors">' + CAT_KEYS.map(function (k) {
+        var c = cat(k);
+        drafts[k] = { img: c.img };
+        return '<div class="editor" data-key="' + k + '">' +
+          '<span class="key">' + k + "</span>" +
+          '<div class="swatch' + (c.img ? " photo" : "") + '" id="prev-' + k + '" style="--sw:' + picVar(c) + '"></div>' +
+          '<div class="actions">' +
+            '<button class="btn" type="button" data-act="pick" data-key="' + k + '">Choose picture</button>' +
+            '<button class="btn" type="button" data-act="clear" data-key="' + k + '">Use default picture</button>' +
+            '<input id="file-' + k + '" type="file" accept="image/*" hidden>' +
+          "</div>" +
+          '<label for="name-' + k + '">Name<input id="name-' + k + '" class="field" type="text" maxlength="40" value="' + esc(c.name) + '"></label>' +
+          '<label for="desc-' + k + '">Description<textarea id="desc-' + k + '" class="field" maxlength="200">' + esc(c.desc) + "</textarea></label>" +
+          '<div class="actions"><button class="btn primary" type="button" data-act="save" data-key="' + k + '">Save</button></div>' +
+          '<p class="msg" id="msg-' + k + '" aria-live="polite"></p>' +
+        "</div>";
+      }).join("") + "</div>" +
+      '<form id="pwForm" class="panel">' +
+        "<h2>Change password</h2>" +
+        '<label for="npw1">New password<input id="npw1" class="field" type="password" autocomplete="new-password" minlength="6" required></label>' +
+        '<label for="npw2">Type it again<input id="npw2" class="field" type="password" autocomplete="new-password" minlength="6" required></label>' +
+        '<div class="actions"><button class="btn primary" type="submit">Change password</button></div>' +
+        '<p class="msg" id="pwMsg" aria-live="polite"></p>' +
+      "</form>";
+  }
+
+  function setPreview(key, imgId) {
+    var el = $("prev-" + key);
+    if (!el) return;
+    el.classList.toggle("photo", !!imgId);
+    el.style.setProperty("--sw", imgId ? "url('" + imgId + "') center / cover no-repeat" : SW[CAT_DEFAULTS[key].sw]);
+  }
+
+  function shrink(file) {
+    return createImageBitmap(file).then(function (bmp) {
+      var max = 900, s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      var c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(bmp.width * s));
+      c.height = Math.max(1, Math.round(bmp.height * s));
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      return new Promise(function (res, rej) {
+        c.toBlob(function (b) { b ? res(b) : rej(new Error("encode")); }, "image/jpeg", 0.8);
+      });
+    }).catch(function () { return file; });
+  }
+
+  function handleFile(key, file) {
+    var m = $("msg-" + key);
+    if (!file) return;
+    if (!/^image\//.test(file.type)) { setMsg(m, "Pick an image file (JPG, PNG, WebP or GIF).", "bad"); return; }
+    setMsg(m, "Preparing picture…");
+    shrink(file).then(function (blob) {
+      if (blob.size > 600 * 1024) throw { code: "too_large" };
+      return new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { res(fr.result); };
+        fr.onerror = rej;
+        fr.readAsDataURL(blob);
+      });
+    }).then(function (url) {
+      if (!validImg(url)) throw { code: "unsupported_type" };
+      drafts[key].img = url;
+      setPreview(key, url);
+      setMsg(m, "Picture ready. Press Save to keep it.", "ok");
+    }).catch(function (e) {
+      var code = e && e.code;
+      setMsg(m, code === "too_large" ? "That picture is too large. Try a smaller one." :
+        code === "unsupported_type" ? "That file type is not supported. Use JPG, PNG, WebP or GIF." :
+        "The picture could not be read. Try another.", "bad");
+    });
+  }
+
+  function saveCat(key) {
+    var m = $("msg-" + key);
+    var name = $("name-" + key).value.trim() || CAT_DEFAULTS[key].name;
+    var desc = $("desc-" + key).value.trim();
+    local.categories[key] = { name: name, desc: desc, img: drafts[key].img || "" };
+    persist();
+    mergeCats();
+    renderShop();
+    $("name-" + key).value = name;
+    setMsg(m, "Saved in this browser. Download categories.json to publish it.", "ok");
+  }
+
+  /* ---------- events ---------- */
+  $("cats").addEventListener("click", function (e) {
+    var t = e.target.closest(".tile");
+    if (!t) return;
+    var k = t.getAttribute("data-cat");
+    state.cat = state.cat === k ? "all" : k;
+    renderShop();
+  });
+  $("clearCat").addEventListener("click", function () { state.cat = "all"; renderShop(); });
+  $("grid").addEventListener("click", function (e) {
+    var card = e.target.closest(".card");
+    if (card) openRock(card.getAttribute("data-lot"), card);
+  });
+  $("q").addEventListener("input", function (e) { state.q = e.target.value; renderGrid(); });
+  $("sort").addEventListener("change", function (e) { state.sort = e.target.value; renderGrid(); });
+  $("close").addEventListener("click", closeSheet);
+  $("overlay").addEventListener("click", function (e) { if (e.target === $("overlay")) closeSheet(); });
+  document.addEventListener("keydown", function (e) {
+    if ($("overlay").hidden) return;
+    if (e.key === "Escape") { closeSheet(); return; }
+    if (e.key === "Tab") {
+      var f = $("sheet").querySelectorAll("button, textarea, a[href]");
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  $("copyEmail").addEventListener("click", function () {
+    copy(EMAIL, $("copyEmail"), null);
+    try {
+      var range = document.createRange();
+      range.selectNodeContents($("email"));
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (e) {}
+  });
+
+  /* manage: lock forms */
+  $("lock").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var id = e.target.id, msg = $("lockMsg");
+    if (id === "unlockForm") {
+      var rec = currentPw();
+      setMsg(msg, "Checking…");
+      derive($("pw").value, unb64(rec.salt), rec.iter || ITER).then(function (h) {
+        if (h === rec.hash) { unlocked = true; renderAdmin(); }
+        else return delay(700).then(function () { setMsg(msg, "That password is not right.", "bad"); $("pw").select(); });
+      }).catch(function () { setMsg(msg, "Could not check the password. Reload and try again.", "bad"); });
+    } else if (id === "setupForm") {
+      var a = $("pw1").value, b = $("pw2").value;
+      if (a !== b) { setMsg(msg, "The two passwords do not match.", "bad"); return; }
+      if (a.length < 6) { setMsg(msg, "Use at least 6 characters.", "bad"); return; }
+      savePassword(a).then(function () { unlocked = true; renderAdmin(); })
+        .catch(function () { setMsg(msg, "Could not save the password. Try again.", "bad"); });
+    }
+  });
+
+  /* manage: editor */
+  $("admin").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b) return;
+    if (b.id === "dlBtn") { download(); return; }
+    if (b.id === "lockBtn") { unlocked = false; renderManage(); return; }
+    var act = b.getAttribute("data-act"), key = b.getAttribute("data-key");
+    if (!act || !key) return;
+    if (act === "pick") $("file-" + key).click();
+    if (act === "clear") { drafts[key].img = ""; setPreview(key, ""); setMsg($("msg-" + key), "Default picture selected. Press Save to publish it.", "ok"); }
+    if (act === "save") saveCat(key);
+  });
+  $("admin").addEventListener("change", function (e) {
+    var t = e.target;
+    if (t && t.type === "file" && /^file-/.test(t.id)) {
+      handleFile(t.id.slice(5), t.files && t.files[0]);
+      t.value = "";
+    }
+  });
+  $("admin").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (e.target.id !== "pwForm") return;
+    var a = $("npw1").value, b = $("npw2").value, msg = $("pwMsg");
+    if (a !== b) { setMsg(msg, "The two passwords do not match.", "bad"); return; }
+    if (a.length < 6) { setMsg(msg, "Use at least 6 characters.", "bad"); return; }
+    setMsg(msg, "Saving…");
+    savePassword(a).then(function () {
+      setMsg(msg, "Password changed. Download categories.json to publish the new password.", "ok");
+      $("npw1").value = ""; $("npw2").value = "";
+    }).catch(function () { setMsg(msg, "Could not save. Try again.", "bad"); });
+  });
+
+  /* this page is the editor only */
+  function route() {
+    $("viewShop").hidden = true;
+    $("viewManage").hidden = false;
+    renderManage();
+  }
+
+  var inStock = ROCKS.filter(function (r) { return !r.sold; }).length;
+  $("stock").textContent = inStock + " pieces in stock · weights in grams";
+  renderShop();
+  route();
+})();
+</script>
+</body>
+</html>
